@@ -70,7 +70,7 @@ io.on('connection', (socket) => {
   for (const videoIndex in session.drawings) {
     socket.emit('receiveAction', {
       type: 'ADD_LINES',
-      lines: session.drawing[videoIndex],
+      lines: session.drawings[videoIndex],
       videoIndex,
     });
   }
@@ -92,6 +92,12 @@ io.on('connection', (socket) => {
         // TODO: need to emit to specific clients in this session
         socket.broadcast.emit('receiveAction', action);
         break;
+      case 'SET_LINES': {
+        const {videoIndex, lines} = action;
+        const session = sessions[SESSION_ID];
+        session.drawings[videoIndex] = lines;
+        socket.broadcast.emit('receiveAction', action);
+      }
     }
   });
 

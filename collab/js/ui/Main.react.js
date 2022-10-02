@@ -5,7 +5,6 @@ const VideoWidget = require('./VideoWidget.react');
 const LiveVideoWidget = require('./LiveVideoWidget.react');
 const {initKeyboardControlsSystem} = require('../systems/keyboardControlsSystem');
 const {initMouseControls} = require('../systems/mouseControlsSystem');
-const {initDrawingPollingSystem} = require('../systems/drawingPollingSystem');
 const {render} = require('../render');
 const {
   dispatchToServer, sendDrawingData,
@@ -80,7 +79,6 @@ function FullScreen(props) {
 
   useEffect(() => {
     initKeyboardControlsSystem(store);
-    // const pollingInterval = initDrawingPollingSystem(store);
     dispatch({
       type: 'SET_HOTKEY', press: 'onKeyDown',
       key: 'space',
@@ -91,7 +89,6 @@ function FullScreen(props) {
     initMouseControls(store, getMouseControls(videoIndex));
     render(store.getState());
     return () => {
-      // clearInterval(pollingInterval);
     }
   }, []);
   const screenWidth = window.innerWidth;
@@ -135,7 +132,9 @@ function FullScreen(props) {
         <Button
           label="Clear Drawings"
           onClick={() => {
-            clearDrawingData(store, videoIndex);
+            dispatchToServer({
+              type: 'SET_LINES', videoIndex, lines: [], clientID: state.clientID,
+            });
           }}
         />
       </div>
@@ -174,10 +173,9 @@ const getMouseControls = (videoIndex) => {
         value: null,
       });
       if (state.curLines.length > 0) {
-        dispatchToServer(state.clientID, {
+        dispatchToServer({
           type: 'ADD_LINES', videoIndex, lines: state.curLines, clientID: state.clientID,
         });
-        // sendDrawingData(videoIndex, state.curLines);
       }
       dispatch({type: 'SET',
         property: 'curLines',

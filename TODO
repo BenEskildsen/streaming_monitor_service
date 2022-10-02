@@ -26,8 +26,6 @@
 
 - - - - - - COLLABORATION - - - - - -
   - once sockets work clear out all non-socket-related code/comments
-  - add clear_drawing back
-  - make sure sockets are receiving drawing
   - socket error that's happening in console
   - dockerignore for collab
   - session -> project
