@@ -1,6 +1,10 @@
 
+  - dockerignore for collab
+  - host ip needs to be updated for the droplet
+
 - - - - - - RTMP SERVICE - - - - - -
-  - nginx with regexes
+  - nginx
+    - can it be moved to the parent directory?
 
 
 - - - - - - UI - - - - - -

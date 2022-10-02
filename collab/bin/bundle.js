@@ -47,7 +47,7 @@ var clearDrawingData = function clearDrawingData(store, videoIndex) {
 
 var server = null;
 var setupClientToServer = function setupClientToServer(store) {
-  var client = new Eureca.Client({ timeout: 1000, retry: 3 });
+  var client = new Eureca.Client({ timeout: 1000, retry: 3, uri: 'http://206.189.227.139' });
   console.log("setting up eureca", client);
   // relay actions received from the server to this client's store
   client.exports.receiveAction = function (action) {
@@ -98,11 +98,13 @@ var useState = React.useState,
     useMemo = React.useMemo,
     useReducer = React.useReducer;
 
+var _require3 = require('./clientToServer'),
+    setupClientToServer = _require3.setupClientToServer;
 
 var store = createStore(rootReducer);
 window.store = store; // useful for debugging and a few hacks
 
-// const client = setupClientToServer(store);
+var client = setupClientToServer(store);
 
 function renderUI(store) {
   var state = store.getState();
@@ -118,7 +120,7 @@ renderUI(store);
 store.subscribe(function () {
   renderUI(store);
 });
-},{"./reducers/rootReducer":6,"./ui/Main.react":12,"react":77,"react-dom/client":73,"redux":78}],4:[function(require,module,exports){
+},{"./clientToServer":1,"./reducers/rootReducer":6,"./ui/Main.react":12,"react":77,"react-dom/client":73,"redux":78}],4:[function(require,module,exports){
 'use strict';
 
 var hotKeysReducer = function hotKeysReducer(hotKeys, action) {
@@ -3846,19 +3848,13 @@ type Props = {
 function Modal(props) {
   var title = props.title,
       body = props.body,
-      buttons = props.buttons;
+      buttons = props.buttons,
+      style = props.style,
+      buttonStyle = props.buttonStyle;
 
   var height = props.height ? props.height : 450;
-
-  // using 2 rects to properly position width and height
-  var rect = document.getElementById('container').getBoundingClientRect();
-  var canvasRect = null;
-  var canvas = document.getElementById('canvas');
-  if (canvas != null) {
-    canvasRect = canvas.getBoundingClientRect();
-  } else {
-    canvasRect = rect;
-  }
+  var overrideStyle = style ? style : {};
+  var overrideButtonStyle = buttonStyle ? buttonStyle : {};
 
   var buttonHTML = buttons.map(function (b) {
     return React.createElement(Button, {
@@ -3868,6 +3864,7 @@ function Modal(props) {
     });
   });
 
+  var rect = document.getElementById('container').getBoundingClientRect();
   var width = props.width ? props.width : Math.min(rect.width * 0.8, 350);
   return React.createElement(
     'div',
@@ -3882,9 +3879,9 @@ function Modal(props) {
         color: '#46403a',
         textAlign: 'center',
         width: width,
-        top: isMobile() ? 0 : (canvasRect.height - height) / 2,
+        top: isMobile() ? 0 : (rect.height - height) / 2,
         left: (rect.width - width) / 2
-      }, props.style)
+      }, overrideStyle)
     },
     React.createElement(
       'h3',
@@ -3899,7 +3896,7 @@ function Modal(props) {
     React.createElement(
       'div',
       {
-        style: {}
+        style: _extends({}, overrideButtonStyle)
       },
       buttonHTML
     )

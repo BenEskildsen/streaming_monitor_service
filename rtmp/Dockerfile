@@ -7,10 +7,10 @@ FROM tiangolo/nginx-rtmp
 # COPY server.js ./
 # CMD ["npm", "start"]
 
-COPY bin/bundle.js /www/
+# COPY bin/bundle.js /www/
 
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY index.html /www/
+# COPY index.html /www/
 
 
 

@@ -53,7 +53,7 @@ const clearDrawingData = (store, videoIndex) => {
 
 let server = null;
 const setupClientToServer = (store) => {
-  const client = new Eureca.Client({timeout: 1000, retry: 3});
+  const client = new Eureca.Client({timeout: 1000, retry: 3, uri: 'http://206.189.227.139'});
   console.log("setting up eureca", client);
   // relay actions received from the server to this client's store
   client.exports.receiveAction = (action) => {
