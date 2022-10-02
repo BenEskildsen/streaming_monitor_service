@@ -7,12 +7,12 @@ const React = require('react');
 const ReactDOM = require('react-dom/client');
 const {rootReducer} = require('./reducers/rootReducer');
 const {useState, useEffect, useMemo, useReducer} = React;
-const {setupClientToServer} = require('./clientToServer');
+const {setupSocket} = require('./clientToServer');
 
 const store = createStore(rootReducer);
 window.store = store; // useful for debugging and a few hacks
 
-const client = setupClientToServer(store);
+const client = setupSocket(store);
 
 function renderUI(store: Store): React.Node {
   const state = store.getState();

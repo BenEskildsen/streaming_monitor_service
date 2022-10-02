@@ -42,34 +42,27 @@ var clearDrawingData = function clearDrawingData(store, videoIndex) {
 };
 
 /**
- * Call these functions to send info to the server (Eureca)
+ * Socket.io functions
  */
-
-var server = null;
-var setupClientToServer = function setupClientToServer(store) {
-  var client = new Eureca.Client({ timeout: 1000, retry: 3, uri: 'http://206.189.227.139' });
-  console.log("setting up eureca", client);
-  // relay actions received from the server to this client's store
-  client.exports.receiveAction = function (action) {
+var socket = null;
+var setupSocket = function setupSocket(store) {
+  socket = io();
+  socket.on('receiveAction', function (action) {
     store.dispatch(action);
-  };
-  client.ready(function (serverProxy) {
-    console.log("server ready", server);
-    server = serverProxy;
   });
-  return client;
+  return socket;
 };
 
 var dispatchToServer = function dispatchToServer(clientID, action) {
-  server.dispatch(clientID, action);
+  socket.emit('dispatch', action);
 };
 
 module.exports = {
   sendDrawingData: sendDrawingData,
   getDrawingData: getDrawingData,
   clearDrawingData: clearDrawingData,
-  setupClientToServer: setupClientToServer,
-  dispatchToServer: dispatchToServer
+  dispatchToServer: dispatchToServer,
+  setupSocket: setupSocket
 };
 },{"axios":16}],2:[function(require,module,exports){
 "use strict";
@@ -99,12 +92,12 @@ var useState = React.useState,
     useReducer = React.useReducer;
 
 var _require3 = require('./clientToServer'),
-    setupClientToServer = _require3.setupClientToServer;
+    setupSocket = _require3.setupSocket;
 
 var store = createStore(rootReducer);
 window.store = store; // useful for debugging and a few hacks
 
-var client = setupClientToServer(store);
+var client = setupSocket(store);
 
 function renderUI(store) {
   var state = store.getState();
@@ -980,7 +973,7 @@ function FullScreen(props) {
 
   useEffect(function () {
     initKeyboardControlsSystem(store);
-    var pollingInterval = initDrawingPollingSystem(store);
+    // const pollingInterval = initDrawingPollingSystem(store);
     dispatch({
       type: 'SET_HOTKEY', press: 'onKeyDown',
       key: 'space',
@@ -991,7 +984,7 @@ function FullScreen(props) {
     initMouseControls(store, getMouseControls(videoIndex));
     render(store.getState());
     return function () {
-      clearInterval(pollingInterval);
+      // clearInterval(pollingInterval);
     };
   }, []);
   var screenWidth = window.innerWidth;
@@ -1077,9 +1070,11 @@ var getMouseControls = function getMouseControls(videoIndex) {
         property: 'prevInteractPos',
         value: null
       });
-      // dispatchToServer(state.clientID, {type: 'ADD_LINES', videoIndex, lines: state.curLines});
       if (state.curLines.length > 0) {
-        sendDrawingData(videoIndex, state.curLines);
+        dispatchToServer(state.clientID, {
+          type: 'ADD_LINES', videoIndex: videoIndex, lines: state.curLines, clientID: state.clientID
+        });
+        // sendDrawingData(videoIndex, state.curLines);
       }
       dispatch({ type: 'SET',
         property: 'curLines',

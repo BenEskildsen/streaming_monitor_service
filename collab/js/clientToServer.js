@@ -46,34 +46,27 @@ const clearDrawingData = (store, videoIndex) => {
 
 }
 
-
 /**
- * Call these functions to send info to the server (Eureca)
+ * Socket.io functions
  */
-
-let server = null;
-const setupClientToServer = (store) => {
-  const client = new Eureca.Client({timeout: 1000, retry: 3, uri: 'http://206.189.227.139'});
-  console.log("setting up eureca", client);
-  // relay actions received from the server to this client's store
-  client.exports.receiveAction = (action) => {
+let socket = null;
+const setupSocket = (store) => {
+  socket = io();
+  socket.on('receiveAction', (action) => {
     store.dispatch(action);
-  }
-  client.ready(function (serverProxy) {
-    console.log("server ready", server);
-    server = serverProxy;
   });
-  return client;
-};
+  return socket;
+}
 
 const dispatchToServer = (clientID, action) => {
-  server.dispatch(clientID, action);
+  socket.emit('dispatch', action);
 };
+
 
 module.exports = {
   sendDrawingData,
   getDrawingData,
   clearDrawingData,
-  setupClientToServer,
   dispatchToServer,
+  setupSocket,
 };

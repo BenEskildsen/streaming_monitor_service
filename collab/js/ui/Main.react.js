@@ -80,7 +80,7 @@ function FullScreen(props) {
 
   useEffect(() => {
     initKeyboardControlsSystem(store);
-    const pollingInterval = initDrawingPollingSystem(store);
+    // const pollingInterval = initDrawingPollingSystem(store);
     dispatch({
       type: 'SET_HOTKEY', press: 'onKeyDown',
       key: 'space',
@@ -91,7 +91,7 @@ function FullScreen(props) {
     initMouseControls(store, getMouseControls(videoIndex));
     render(store.getState());
     return () => {
-      clearInterval(pollingInterval);
+      // clearInterval(pollingInterval);
     }
   }, []);
   const screenWidth = window.innerWidth;
@@ -173,9 +173,11 @@ const getMouseControls = (videoIndex) => {
         property: 'prevInteractPos',
         value: null,
       });
-      // dispatchToServer(state.clientID, {type: 'ADD_LINES', videoIndex, lines: state.curLines});
       if (state.curLines.length > 0) {
-        sendDrawingData(videoIndex, state.curLines);
+        dispatchToServer(state.clientID, {
+          type: 'ADD_LINES', videoIndex, lines: state.curLines, clientID: state.clientID,
+        });
+        // sendDrawingData(videoIndex, state.curLines);
       }
       dispatch({type: 'SET',
         property: 'curLines',

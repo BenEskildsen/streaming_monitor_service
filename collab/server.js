@@ -1,37 +1,28 @@
 const express = require("express");
 const fs = require("fs");
 const http = require('http');
-// const {config} = require("./js/config");
-const Eureca = require('eureca.io');
+const {Server} = require("socket.io");
 
-
-const config = {
-  videoFiles: [
-    {path: "videos/antocracy_trailer_1.mp4", type: "video/mp4"},
-    {path: "videos/zoomed_out_ants.mov", type: "video/mp4"},
-  ],
-};
 
 // ------------------------------------------------------------------------------
 // initialize server and listen to port
 // ------------------------------------------------------------------------------
 const app = express();
-// eureca initializations
-const server = http.createServer(app);
-const eurecaServer = new Eureca.Server({allow: ['receiveAction']});
-eurecaServer.attach(server);
-
 app.use(express.json());
 
-const port = 8000;
-console.log('server running in ', __dirname);
+// socket.io
+const server = http.createServer(app);
+const io = new Server(server);
 
-console.log("server listening on port", port);
+const port = 8000;
+
 // app.listen(port, function() {
 //   console.log("server listening on port", port);
 // });
 app.use(express.static('./'));
-server.listen(port)
+server.listen(port, () => {
+  console.log("server listening on port", port);
+});
 
 
 
@@ -45,18 +36,73 @@ const SESSION_ID = 0; // placeholder until we start handling multiple sessions
 const sessions = {};
 
 let nextClientID = 1;
-const eurecaClients = {};
+const socketClients = {};
 const clientToSession = {};
 
 sessions[SESSION_ID] = {
   id: SESSION_ID,
+  clients: [],
   drawings: {}, // {[videoIndex]: Array<{start, end}>}
 }
 
 
+// ------------------------------------------------------------------------------
+// Socket.io
+// ------------------------------------------------------------------------------
+io.on('connection', (socket) => {
+
+  // on client connect
+  socketClients[nextClientID] = socket;
+  clientToSession[nextClientID] = SESSION_ID;
+  // tell the client what its id is
+  socket.emit('receiveAction', {
+    type: 'SET',
+    property: 'clientID',
+    value: nextClientID,
+  });
+  // create the session if it doesn't exist
+  if (!sessions[SESSION_ID]) {
+    sessions[SESSION_ID] = {id: SESSION_ID, drawings: {}, clients: []};
+  }
+  const session = sessions[SESSION_ID];
+  session.clients.push(nextClientID);
+  // update the just-connected client with drawing data that may exist
+  for (const videoIndex in session.drawings) {
+    socket.emit('receiveAction', {
+      type: 'ADD_LINES',
+      lines: session.drawing[videoIndex],
+      videoIndex,
+    });
+  }
+  nextClientID++;
+
+  socket.on('dispatch', (action) => {
+    if (action == null) {
+      return;
+    }
+    // console.log('client: ' + clientID + ' dispatches ' + action.type);
+    switch (action.type) {
+      case 'ADD_LINES':
+        const {lines, videoIndex} = action;
+        const session = sessions[SESSION_ID];
+        if (!session.drawings[videoIndex]) {
+          session.drawings[videoIndex] = [];
+        }
+        sessions[SESSION_ID].drawings[videoIndex].push(...lines);
+        // TODO: need to emit to specific clients in this session
+        socket.broadcast.emit('receiveAction', action);
+        break;
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log("user disconnected");
+  });
+});
+
 
 // ------------------------------------------------------------------------------
-// Polling for drawing data (not using eureca, just express)
+// Polling for drawing data (not using eureca or socket, just express)
 // ------------------------------------------------------------------------------
 app.get(/drawings_./, function(req, res) {
   console.log("get drawings", req.url);
@@ -98,111 +144,4 @@ app.post(/drawings_./, function(req, res) {
   res.status(201).send({success: true});
 });
 
-// ------------------------------------------------------------------------------
-// Sending video (not using eureca, just express)
-// ------------------------------------------------------------------------------
-app.get(/video_./, function(req, res) {
-  const range = req.headers.range;
-  if (!range) {
-    res.status(400).send("Requires range header");
-  }
 
-  const videos = config.videoFiles;
-  const vidIndex = req.url.match(/\d/)[0];
-
-  if (!videos[vidIndex]) {
-    res.status(404).send("No video with index " + vidIndex);
-    return;
-  }
-
-  const videoSize = fs.statSync(videos[vidIndex].path).size;
-
-  // parse range
-  // Example "bytes="32324-" just give me the
-  const CHUNK_SIZE = 10 ** 6; // 1MB
-  const start = Number(range.replace(/\D/g, ""));
-  const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
-  const contentLength = end - start + 1;
-
-  const headers = {
-    "Content-Range": `bytes ${start}-${end}/${videoSize}`,
-    "Accept-Ranges": "bytes",
-    "Content-Length": contentLength,
-    "Content-Type": videos[vidIndex]
-  };
-
-
-  res.writeHead(206, headers);
-  const videoStream = fs.createReadStream(videos[vidIndex].path, {start, end});
-  videoStream.pipe(res);
-});
-
-
-// ------------------------------------------------------------------------------
-// functions under exports namespace become callable from client side
-// ------------------------------------------------------------------------------
-eurecaServer.exports.dispatch = function (clientID, action) {
-  if (action == null) {
-    return;
-  }
-  console.log('client: ' + clientID + ' dispatches ' + action.type);
-  switch (action.type) {
-    case 'ADD_LINES':
-      const {lines, videoIndex} = action;
-      const session = sessions[SESSION_ID];
-      if (!session.drawings[videoIndex]) {
-        session.drawings[videoIndex] = [];
-      }
-      sessions[SESSION_ID].drawings[videoIndex].push(...lines);
-      dispatchToOtherClients(clientID, action);
-      break;
-  }
-}
-
-
-// ------------------------------------------------------------------------------
-// each time a client is connected we call
-// ------------------------------------------------------------------------------
-eurecaServer.onConnect(function (socket) {
-  const client = socket.clientProxy; // get remote client ref
-  console.log("client connecting", nextClientID);
-
-  eurecaClients[nextClientID] = client;
-  clientToSession[nextClientID] = SESSION_ID;
-
-  // tell the client what its id is
-  client.receiveAction({
-    type: 'SET',
-    property: 'clientID',
-    value: nextClientID,
-  });
-
-  // create the session if it doesn't exist
-  if (!sessions[SESSION_ID]) {
-  }
-  sessions[SESSION_ID].clients.push(nextClientID);
-
-  // update the just-connected client with drawing data that may exist
-  for (const videoIndex in session.drawings) {
-    client.receiveAction({
-      type: 'ADD_LINES',
-      lines: session.drawing[videoIndex],
-      videoIndex,
-    });
-  }
-
-  nextClientID++;
-});
-// ------------------------------------------------------------------------------
-// helpers
-// ------------------------------------------------------------------------------
-function dispatchToOtherClients(initialClientID, action, allClients, alsoSelf) {
-  const clientsToSendTo = allClients
-    ? eurecaClients
-    : clientsInSession(clientToSession[playerID]);
-  for (const clientID in clientsToSendTo) {
-    if (clientID != initialClientID || alsoSelf) {
-      eurecaClients[clientID].receiveAction(action);
-    }
-  }
-}
