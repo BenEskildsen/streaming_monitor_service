@@ -1,16 +1,25 @@
 // @flow
 const React = require('react');
-const {Canvas} = require('bens_ui_components');
+const {Button, Canvas} = require('bens_ui_components');
 const VideoWidget = require('./VideoWidget.react');
 const LiveVideoWidget = require('./LiveVideoWidget.react');
 const {initKeyboardControlsSystem} = require('../systems/keyboardControlsSystem');
 const {initMouseControls} = require('../systems/mouseControlsSystem');
 const {initDrawingPollingSystem} = require('../systems/drawingPollingSystem');
 const {render} = require('../render');
-const {dispatchToServer, sendDrawingData} = require('../clientToServer');
+const {
+  dispatchToServer, sendDrawingData,
+  clearDrawingData,
+} = require('../clientToServer');
+const {isMobile} = require('bens_utils').platform;
 const {useState, useEffect, useMemo, useReducer} = React;
 
-const SRC = 'http://206.189.227.139/hls/test.m3u8';
+const SRC = [
+  'http://206.189.227.139/hls/test_0.m3u8',
+  'http://206.189.227.139/hls/test_1.m3u8',
+  'http://206.189.227.139/hls/test_2.m3u8',
+  'http://206.189.227.139/hls/test_3.m3u8',
+]
 
 function Main(props) {
   const {state, dispatch, store} = props;
@@ -45,7 +54,7 @@ function VideoGrid(props) {
     widgets.push(<LiveVideoWidget
       id={"video_" + video.path}
       key={"video_" + video.path}
-      width={350} height={200} videoSrc={SRC}
+      width={350} height={200} videoSrc={SRC[i]}
       onClick={() => {
         dispatch({type: 'SET_VIDEO_INDEX', videoIndex: i});
         dispatch({type: 'SET_SCREEN', screen: 'FULL'});
@@ -54,7 +63,11 @@ function VideoGrid(props) {
   }
 
   return (
-    <div>
+    <div
+      style={{
+        backgroundColor: 'black',
+      }}
+    >
       {widgets}
     </div>
   );
@@ -75,69 +88,101 @@ function FullScreen(props) {
         s.dispatch({type: 'SET_SCREEN', screen: 'GRID'});
       },
     });
-    initMouseControls(store, {
-      mouseMove: (state, dispatch, gridPos) => {
-        if (!state.mouse.isLeftDown) return;
-        dispatch({type: 'SET', value: true, property: 'inMove'});
-
-        if (state.prevInteractPos) {
-          const prevPos = state.prevInteractPos;
-          dispatch({type: 'ADD_LINE',
-            start: {...prevPos},
-            end: {...gridPos},
-            videoIndex,
-          });
-          dispatch({type: 'SET',
-            property: 'prevInteractPos',
-            value: gridPos,
-          });
-        } else {
-          dispatch({type: 'SET',
-            property: 'prevInteractPos',
-            value: gridPos,
-          });
-        }
-      },
-      leftUp: (state, dispatch, gridPos) => {
-        dispatch({type: 'SET', value: false, property: 'inMove'});
-        dispatch({type: 'SET',
-          property: 'prevInteractPos',
-          value: null,
-        });
-        // dispatchToServer(state.clientID, {type: 'ADD_LINES', videoIndex, lines: state.curLines});
-        if (state.curLines.length > 0) {
-          sendDrawingData(videoIndex, state.curLines);
-        }
-        dispatch({type: 'SET',
-          property: 'curLines',
-          value: [],
-        });
-      },
-    });
+    initMouseControls(store, getMouseControls(videoIndex));
     render(store.getState());
     return () => {
       clearInterval(pollingInterval);
     }
   }, []);
+  const screenWidth = window.innerWidth;
+  const widgetWidth = screenWidth * 0.66;
+  const sidebarWidth = screenWidth - widgetWidth - 20;
+  const height = window.innerHeight;
 
   return (
-    <span>
+    <span
+      style={{
+        backgroundColor: 'black',
+      }}
+    >
       <LiveVideoWidget
-        width={650} height={400} videoSrc={SRC}
+        width={widgetWidth} height={height} videoSrc={SRC[videoIndex]}
       />
       <div
         style={{
           position: 'absolute',
           top: 0,
-          width: 650, height: 400,
+          width: widgetWidth, height,
         }}
       >
         <Canvas
-          width={650} height={400}
+          width={widgetWidth} height={height}
+        />
+      </div>
+      <div style={{
+        display: "inline-block",
+        float: 'right',
+        width: sidebarWidth,
+        height,
+        backgroundColor: 'black',
+      }}>
+        <Button
+          label="Return to Grid"
+          onClick={() => {
+            dispatch({type: 'SET_SCREEN', screen: 'GRID'});
+          }}
+        />
+        <Button
+          label="Clear Drawings"
+          onClick={() => {
+            clearDrawingData(store, videoIndex);
+          }}
         />
       </div>
     </span>
   );
 }
+
+const getMouseControls = (videoIndex) => {
+  return {
+    mouseMove: (state, dispatch, gridPos) => {
+      if (!state.mouse.isLeftDown) return;
+      dispatch({type: 'SET', value: true, property: 'inMove'});
+
+      if (state.prevInteractPos) {
+        const prevPos = state.prevInteractPos;
+        dispatch({type: 'ADD_LINE',
+          start: {...prevPos},
+          end: {...gridPos},
+          videoIndex,
+        });
+        dispatch({type: 'SET',
+          property: 'prevInteractPos',
+          value: gridPos,
+        });
+      } else {
+        dispatch({type: 'SET',
+          property: 'prevInteractPos',
+          value: gridPos,
+        });
+      }
+    },
+    leftUp: (state, dispatch, gridPos) => {
+      dispatch({type: 'SET', value: false, property: 'inMove'});
+      dispatch({type: 'SET',
+        property: 'prevInteractPos',
+        value: null,
+      });
+      // dispatchToServer(state.clientID, {type: 'ADD_LINES', videoIndex, lines: state.curLines});
+      if (state.curLines.length > 0) {
+        sendDrawingData(videoIndex, state.curLines);
+      }
+      dispatch({type: 'SET',
+        property: 'curLines',
+        value: [],
+      });
+    },
+  };
+};
 
 module.exports = Main;

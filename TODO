@@ -1,2 +1,42 @@
 
- - add another service for managing drawings
+- - - - - - RTMP SERVICE - - - - - -
+  - nginx with regexes
+
+
+- - - - - - UI - - - - - -
+  - incorporate outer skin
+  - start in full screen
+  - gesture to switch between videos?
+
+
+- - - - - - STREAMING - - - - -
+  - switch to SRT?
+  - allow defining the URL/streamkey from the UI
+  - better placeholder for streams that aren't up
+
+
+- - - - - - DRAWING - - - - - -
+  - each client should have a different color (how to do with polling?)
+    - lines should have a userID, radioStation, user has color
+  - select color
+  - still want to play/pause and draw?
+
+
+- - - - - - COLLABORATION - - - - - -
+  - figure out why eureca won't connect or a replacement for it
+  - shared drawing data live
+    - post drawing data to server
+    - other clients need to recieve drawing data
+    - track clients that have connected
+
+
+- - - - - STRETCH - - - - -
+  - walkie-talkie feature
+
+
+- - - - - VIDEO PLAYER - - - - -
+  - videos are too big to store on git
+  - save spot in video when switching between views
+    - get spot in each video when a switch happens
+    - apply that spot after
+  - Index parts of video already downloaded so you don't have to redownload

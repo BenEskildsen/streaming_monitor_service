@@ -1,7 +1,5 @@
 // @flow
 
-console.log("trying to run!");
-
 const {createStore} = require('redux');
 const Main = require('./ui/Main.react');
 const React = require('react');

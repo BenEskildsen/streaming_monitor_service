@@ -8,21 +8,42 @@ const axios = require('axios');
 // ... makes sense...
 // const Eureca = require('eureca.io');
 
-// const axiosInstance = axios.create({
-//   baseURL: 'https://sidewalk-empire.herokuapp.com',
-// });
+const axiosInstance = axios.create({
+  baseURL: 'http://206.189.227.139',
+});
 // for localhost:
-const axiosInstance = axios;
+// const axiosInstance = axios;
 
 const sendDrawingData = (videoIndex, lines) => {
-  axiosInstance.post('/drawings_' + videoIndex, {lines});
+  axiosInstance.post('/drawings_' + videoIndex, {lines})
+    .then(() => {
+      console.log("post succeeded");
+    })
+    .catch(e => {
+      console.log("post failed", e);
+    });
 }
 
 const getDrawingData = (store, videoIndex) => {
-  axiosInstance.get('drawings_' + videoIndex)
+  axiosInstance.get('/drawings_' + videoIndex)
     .then((res) => {
+      console.log("get succeeded");
       store.dispatch({type: 'SET_LINES', videoIndex, lines: res.data});
+    })
+    .catch(e => {
+      console.log('get failed', e);
     });
+}
+
+const clearDrawingData = (store, videoIndex) => {
+  axiosInstance.post('/clear_drawings_' + videoIndex)
+    .then(() => {
+      console.log("clear post succeeded");
+    })
+    .catch(e => {
+      console.log("clear post failed", e);
+    });
+
 }
 
 
@@ -52,6 +73,7 @@ const dispatchToServer = (clientID, action) => {
 module.exports = {
   sendDrawingData,
   getDrawingData,
+  clearDrawingData,
   setupClientToServer,
   dispatchToServer,
 };

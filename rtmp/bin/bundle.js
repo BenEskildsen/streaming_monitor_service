@@ -10,19 +10,34 @@ var axios = require('axios');
 // ... makes sense...
 // const Eureca = require('eureca.io');
 
-// const axiosInstance = axios.create({
-//   baseURL: 'https://sidewalk-empire.herokuapp.com',
-// });
+var axiosInstance = axios.create({
+  baseURL: 'http://206.189.227.139'
+});
 // for localhost:
-var axiosInstance = axios;
+// const axiosInstance = axios;
 
 var sendDrawingData = function sendDrawingData(videoIndex, lines) {
-  axiosInstance.post('/drawings_' + videoIndex, { lines: lines });
+  axiosInstance.post('/drawings_' + videoIndex, { lines: lines }).then(function () {
+    console.log("post succeeded");
+  }).catch(function (e) {
+    console.log("post failed", e);
+  });
 };
 
 var getDrawingData = function getDrawingData(store, videoIndex) {
-  axiosInstance.get('drawings_' + videoIndex).then(function (res) {
+  axiosInstance.get('/drawings_' + videoIndex).then(function (res) {
+    console.log("get succeeded");
     store.dispatch({ type: 'SET_LINES', videoIndex: videoIndex, lines: res.data });
+  }).catch(function (e) {
+    console.log('get failed', e);
+  });
+};
+
+var clearDrawingData = function clearDrawingData(store, videoIndex) {
+  axiosInstance.post('/clear_drawings_' + videoIndex).then(function () {
+    console.log("clear post succeeded");
+  }).catch(function (e) {
+    console.log("clear post failed", e);
   });
 };
 
@@ -52,6 +67,7 @@ var dispatchToServer = function dispatchToServer(clientID, action) {
 module.exports = {
   sendDrawingData: sendDrawingData,
   getDrawingData: getDrawingData,
+  clearDrawingData: clearDrawingData,
   setupClientToServer: setupClientToServer,
   dispatchToServer: dispatchToServer
 };
@@ -65,8 +81,6 @@ var config = {
 module.exports = { config: config };
 },{}],3:[function(require,module,exports){
 'use strict';
-
-console.log("trying to run!");
 
 var _require = require('redux'),
     createStore = _require.createStore;
@@ -860,6 +874,7 @@ var _extends = Object.assign || function (target) { for (var i = 1; i < argument
 var React = require('react');
 
 var _require = require('bens_ui_components'),
+    Button = _require.Button,
     Canvas = _require.Canvas;
 
 var VideoWidget = require('./VideoWidget.react');
@@ -879,7 +894,10 @@ var _require5 = require('../render'),
 
 var _require6 = require('../clientToServer'),
     dispatchToServer = _require6.dispatchToServer,
-    sendDrawingData = _require6.sendDrawingData;
+    sendDrawingData = _require6.sendDrawingData,
+    clearDrawingData = _require6.clearDrawingData;
+
+var isMobile = require('bens_utils').platform.isMobile;
 
 var useState = React.useState,
     useEffect = React.useEffect,
@@ -887,7 +905,7 @@ var useState = React.useState,
     useReducer = React.useReducer;
 
 
-var SRC = 'http://206.189.227.139/hls/test.m3u8';
+var SRC = ['http://206.189.227.139/hls/test_0.m3u8', 'http://206.189.227.139/hls/test_1.m3u8', 'http://206.189.227.139/hls/test_2.m3u8', 'http://206.189.227.139/hls/test_3.m3u8'];
 
 function Main(props) {
   var state = props.state,
@@ -928,7 +946,7 @@ function VideoGrid(props) {
     widgets.push(React.createElement(LiveVideoWidget, {
       id: "video_" + video.path,
       key: "video_" + video.path,
-      width: 350, height: 200, videoSrc: SRC,
+      width: 350, height: 200, videoSrc: SRC[i],
       onClick: function onClick() {
         dispatch({ type: 'SET_VIDEO_INDEX', videoIndex: i });
         dispatch({ type: 'SET_SCREEN', screen: 'FULL' });
@@ -942,7 +960,11 @@ function VideoGrid(props) {
 
   return React.createElement(
     'div',
-    null,
+    {
+      style: {
+        backgroundColor: 'black'
+      }
+    },
     widgets
   );
 }
@@ -964,56 +986,26 @@ function FullScreen(props) {
         s.dispatch({ type: 'SET_SCREEN', screen: 'GRID' });
       }
     });
-    initMouseControls(store, {
-      mouseMove: function mouseMove(state, dispatch, gridPos) {
-        if (!state.mouse.isLeftDown) return;
-        dispatch({ type: 'SET', value: true, property: 'inMove' });
-
-        if (state.prevInteractPos) {
-          var prevPos = state.prevInteractPos;
-          dispatch({ type: 'ADD_LINE',
-            start: _extends({}, prevPos),
-            end: _extends({}, gridPos),
-            videoIndex: videoIndex
-          });
-          dispatch({ type: 'SET',
-            property: 'prevInteractPos',
-            value: gridPos
-          });
-        } else {
-          dispatch({ type: 'SET',
-            property: 'prevInteractPos',
-            value: gridPos
-          });
-        }
-      },
-      leftUp: function leftUp(state, dispatch, gridPos) {
-        dispatch({ type: 'SET', value: false, property: 'inMove' });
-        dispatch({ type: 'SET',
-          property: 'prevInteractPos',
-          value: null
-        });
-        // dispatchToServer(state.clientID, {type: 'ADD_LINES', videoIndex, lines: state.curLines});
-        if (state.curLines.length > 0) {
-          sendDrawingData(videoIndex, state.curLines);
-        }
-        dispatch({ type: 'SET',
-          property: 'curLines',
-          value: []
-        });
-      }
-    });
+    initMouseControls(store, getMouseControls(videoIndex));
     render(store.getState());
     return function () {
       clearInterval(pollingInterval);
     };
   }, []);
+  var screenWidth = window.innerWidth;
+  var widgetWidth = screenWidth * 0.66;
+  var sidebarWidth = screenWidth - widgetWidth - 20;
+  var height = window.innerHeight;
 
   return React.createElement(
     'span',
-    null,
+    {
+      style: {
+        backgroundColor: 'black'
+      }
+    },
     React.createElement(LiveVideoWidget, {
-      width: 650, height: 400, videoSrc: SRC
+      width: widgetWidth, height: height, videoSrc: SRC[videoIndex]
     }),
     React.createElement(
       'div',
@@ -1021,18 +1013,82 @@ function FullScreen(props) {
         style: {
           position: 'absolute',
           top: 0,
-          width: 650, height: 400
+          width: widgetWidth, height: height
         }
       },
       React.createElement(Canvas, {
-        width: 650, height: 400
+        width: widgetWidth, height: height
+      })
+    ),
+    React.createElement(
+      'div',
+      { style: {
+          display: "inline-block",
+          float: 'right',
+          width: sidebarWidth,
+          height: height,
+          backgroundColor: 'black'
+        } },
+      React.createElement(Button, {
+        label: 'Return to Grid',
+        onClick: function onClick() {
+          dispatch({ type: 'SET_SCREEN', screen: 'GRID' });
+        }
+      }),
+      React.createElement(Button, {
+        label: 'Clear Drawings',
+        onClick: function onClick() {
+          clearDrawingData(store, videoIndex);
+        }
       })
     )
   );
 }
 
+var getMouseControls = function getMouseControls(videoIndex) {
+  return {
+    mouseMove: function mouseMove(state, dispatch, gridPos) {
+      if (!state.mouse.isLeftDown) return;
+      dispatch({ type: 'SET', value: true, property: 'inMove' });
+
+      if (state.prevInteractPos) {
+        var prevPos = state.prevInteractPos;
+        dispatch({ type: 'ADD_LINE',
+          start: _extends({}, prevPos),
+          end: _extends({}, gridPos),
+          videoIndex: videoIndex
+        });
+        dispatch({ type: 'SET',
+          property: 'prevInteractPos',
+          value: gridPos
+        });
+      } else {
+        dispatch({ type: 'SET',
+          property: 'prevInteractPos',
+          value: gridPos
+        });
+      }
+    },
+    leftUp: function leftUp(state, dispatch, gridPos) {
+      dispatch({ type: 'SET', value: false, property: 'inMove' });
+      dispatch({ type: 'SET',
+        property: 'prevInteractPos',
+        value: null
+      });
+      // dispatchToServer(state.clientID, {type: 'ADD_LINES', videoIndex, lines: state.curLines});
+      if (state.curLines.length > 0) {
+        sendDrawingData(videoIndex, state.curLines);
+      }
+      dispatch({ type: 'SET',
+        property: 'curLines',
+        value: []
+      });
+    }
+  };
+};
+
 module.exports = Main;
-},{"../clientToServer":1,"../render":7,"../systems/drawingPollingSystem":8,"../systems/keyboardControlsSystem":9,"../systems/mouseControlsSystem":10,"./LiveVideoWidget.react":11,"./VideoWidget.react":13,"bens_ui_components":63,"react":77}],13:[function(require,module,exports){
+},{"../clientToServer":1,"../render":7,"../systems/drawingPollingSystem":8,"../systems/keyboardControlsSystem":9,"../systems/mouseControlsSystem":10,"./LiveVideoWidget.react":11,"./VideoWidget.react":13,"bens_ui_components":63,"bens_utils":70,"react":77}],13:[function(require,module,exports){
 "use strict";
 
 var React = require('react');
